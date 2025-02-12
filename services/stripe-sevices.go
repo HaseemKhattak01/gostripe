@@ -3,28 +3,38 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
+	config "github.com/HaseemKhattak01/gostripe/congfig"
 	"github.com/HaseemKhattak01/gostripe/models"
 	"github.com/stripe/stripe-go/v76"
+	"github.com/stripe/stripe-go/v76/customer"
 	"github.com/stripe/stripe-go/v76/paymentintent"
 	"github.com/stripe/stripe-go/v76/webhook"
 )
 
-const (
-	stripeSecretKey     = "sk_test_51QnEUnKvqOfHz2kK63G5UjwWxRP1GByBsdKibgKqudCk7PGQtXa1GIFVJQMrjkEq7YsI1izWi9igLFxW4qEufUZj006ijq97DO"
-	stripeWebhookSecret = "whsec_AMDPHqMp2x3pY9aBVBZwjawl1VFcdB65"
-)
+func CreateCustomer(email string) (*models.Customer, error) {
+	stripe.Key = config.StripeSecretKey
 
-func init() {
-	stripe.Key = stripeSecretKey
+	params := &stripe.CustomerParams{
+		Email: stripe.String(email),
+	}
+
+	c, err := customer.New(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Customer{Customer: *c}, nil
 }
 
-func CreatePaymentIntent(amount int64) (string, error) {
+func CreatePaymentIntent(amount int64, customerID string) (string, error) {
+	stripe.Key = config.StripeSecretKey
 	params := &stripe.PaymentIntentParams{
 		Amount:   stripe.Int64(amount),
 		Currency: stripe.String("usd"),
+		Customer: stripe.String(customerID),
 	}
 	pi, err := paymentintent.New(params)
 	if err != nil {
@@ -36,18 +46,18 @@ func CreatePaymentIntent(amount int64) (string, error) {
 func HandleStripeWebhook(w http.ResponseWriter, r *http.Request) error {
 	const MaxBodyBytes = int64(65536)
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
-	payload, err := ioutil.ReadAll(r.Body)
+
+	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		return fmt.Errorf("error reading request body: %v", err)
 	}
 
-	// Verify webhook signature
+	stripeWebhookSecret := config.StripeWebhookSecret
 	event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), stripeWebhookSecret)
 	if err != nil {
 		return fmt.Errorf("error verifying webhook signature: %v", err)
 	}
 
-	// Handle the event
 	switch event.Type {
 	case "payment_intent.succeeded":
 		var paymentIntent models.PaymentIntent

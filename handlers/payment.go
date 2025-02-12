@@ -15,15 +15,21 @@ func HandleCreatePaymentIntent(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body
 	var req struct {
-		Amount int64 `json:"amount"`
+		Amount int64  `json:"amount"`
+		Email  string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Create a PaymentIntent
-	clientSecret, err := services.CreatePaymentIntent(req.Amount)
+	customer, err := services.CreateCustomer(req.Email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	clientSecret, err := services.CreatePaymentIntent(req.Amount, customer.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
