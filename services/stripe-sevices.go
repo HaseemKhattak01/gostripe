@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	config "github.com/HaseemKhattak01/gostripe/congfig"
+	config "github.com/HaseemKhattak01/gostripe/config"
 	"github.com/HaseemKhattak01/gostripe/models"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/customer"
